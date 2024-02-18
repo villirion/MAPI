@@ -1,4 +1,6 @@
 import pandas as pd
+from query import get_status, check_valid
+from datetime import datetime
 
 def setupCSV(csv: str) -> pd.DataFrame:
     df = pd.read_csv(csv)
@@ -39,7 +41,17 @@ def Post(csv: str, data: dict) -> tuple[dict, int]:
     if not required_keys.issubset(data.keys()):
         return  {'ERROR': 'Invalid data format'}, 400
 
-    new_entry = {'TITLE': data['TITLE'], 'SITE': data['SITE'], 'CHAPTER': data['CHAPTER']}
+    title = data['TITLE']
+    url = data['SITE']
+    chapter = data['CHAPTER']
+
+    if not check_valid(url, chapter):
+        return {'ERROR': 'Invalid payload'}, 400
+
+    status = get_status(url, chapter)
+    date = datetime.now().date()
+
+    new_entry = {'TITLE': title, 'SITE': url, 'CHAPTER': chapter, 'STATUS': status, 'LAST_UPDATE': date}
     df.loc[len(df.index)] = new_entry
 
     updateCSV(df, csv)
@@ -52,20 +64,45 @@ def Update(csv: str, data: dict) -> tuple[dict, int]:
 
     required_keys = {'TITLE', 'SITE', 'CHAPTER'}
     if not required_keys.issubset(data.keys()):
-        return  {'ERROR': 'Invalid data format'}, 400
+        return {'ERROR': 'Invalid data format'}, 400
 
-    filter_df = df_copy[df_copy["TITLE"] == data['TITLE']]
+    title = data['TITLE']
+
+    filter_df = df_copy[df_copy["TITLE"] == title]
 
     if filter_df.empty:
         return {'ERROR': 'not found'}, 404
 
+    url = data['SITE']
+    chapter = data['CHAPTER']
 
-    updated_entry = {'TITLE': data['TITLE'], 'SITE': data['SITE'], 'CHAPTER': data['CHAPTER']}
-    df.loc[df["TITLE"] == data['TITLE']] = [data['TITLE'], data['SITE'], data['CHAPTER']]
+    if not check_valid(url, chapter):
+        return {'ERROR': 'Invalid payload'}, 400
+
+    status = get_status(url, chapter)
+    date = datetime.now().date()
+
+    updated_entry = {'TITLE': title, 'SITE': url, 'CHAPTER': chapter, 'STATUS': status, 'LAST_UPDATE': date}
+    df.loc[df["TITLE"] == title] = [title, url, chapter, status, date]
 
     updateCSV(df, csv)
 
     return updated_entry, 200
+
+def Reload(csv: str) -> tuple[dict, int]:
+    df = setupCSV(csv)
+
+    for _, row in df.iterrows():
+        title = row['TITLE']
+        url = row['SITE']
+        chapter = row['CHAPTER']
+        status = get_status(url, chapter)
+        date = datetime.now().date()
+        df.loc[df["TITLE"] == title] = [title, url, chapter, status, date]
+
+    updateCSV(df, csv)
+
+    return {}, 200
 
 def Delete(csv: str, data: dict) -> tuple[dict, int]:
     df = setupCSV(csv)
@@ -75,12 +112,14 @@ def Delete(csv: str, data: dict) -> tuple[dict, int]:
     if not required_keys.issubset(data.keys()):
         return  {'ERROR': 'Invalid data format'}, 400
 
-    filter_df = df_copy[df_copy["TITLE"] == data['TITLE']]
+    title = data['TITLE']
+
+    filter_df = df_copy[df_copy["TITLE"] == title]
 
     if filter_df.empty:
         return {'ERROR': 'not found'}, 404
 
-    df = df.drop(df.index[df["TITLE"] == data['TITLE']])
+    df = df.drop(df.index[df["TITLE"] == title])
 
     updateCSV(df, csv)
 

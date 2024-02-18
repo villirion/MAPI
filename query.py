@@ -1,42 +1,40 @@
 import requests
-from persistence import setupCSV
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Comment
 import re
-import time
 
 def check_page_existence(url: str) -> bool:
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
+
     try:
-        response = requests.head(url)
+        response = requests.get(url, headers=headers)
         return response.status_code // 100 == 2
     except requests.RequestException:
         return False
 
-def check_all_page_existence(csv: str) -> list[dict]:
-    df = setupCSV(csv)
+def check_valid(url: str, chapter: str) -> str:
+    if not check_page_existence(url):
+        return False
 
-    json_list = []
+    chapter_url = get_chapter_url(url, str(chapter))
+    if chapter_url == "" or chapter_url == "Unsupported site":
+        return False
 
-    for _, row in df.iterrows():
-        if not check_page_existence(row['SITE']):
-            row_dict = row.to_dict()
-            json_list.append(row_dict)
+    return True
 
-    return json_list
+def get_status(url: str, chapter: int) -> str:
+    if not check_page_existence(url):
+        return "Link broken"
 
-def check_all_new_chapter(csv: str) -> list[dict]:
-    df = setupCSV(csv)
+    chapter_url = get_chapter_url(url, str(chapter + 1))
+    if chapter_url == "Unsupported site":
+        return "Unsupported site"
 
-    json_list = []
+    if chapter_url != "":
+        return "New chapter available"
 
-    for _, row in df.iterrows():
-        chapter = int(row['CHAPTER']) + 1
-        if check_page_existence(get_last_chapter_url(row['SITE'], str(chapter))):
-            row_dict = row.to_dict()
-            json_list.append(row_dict)
+    return "Up to date"
 
-    return json_list
-
-def get_last_chapter_url(url: str, chapter: str):
+def get_chapter_url(url: str, chapter: str) -> str:
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
     response = requests.get(url, headers=headers)
     soup = BeautifulSoup(response.text, 'html.parser')
@@ -57,16 +55,21 @@ def get_last_chapter_url(url: str, chapter: str):
             return chapter_url
 
     elif "manga4life.com" in url:
-        pattern = re.compile(fr'(.*)({chapter}.html)$')
-        chapter_a = soup.find('a', href= pattern)
+        name = url.split("/")[-1]
+        chapter_url = "https://manga4life.com/read-online/" + name + "-chapter-" + chapter + ".html"
 
-        if chapter_a:
-            chapter_url = chapter_a.get('href')
-            return chapter_url
+        if check_page_existence(chapter_url):
+            response = requests.get(chapter_url, headers=headers)
+            soup = BeautifulSoup(response.text, 'html.parser')
+
+            comment_text = '404'
+            find = soup.find(string=lambda text: isinstance(text, Comment) and comment_text in text)
+            if not find:
+                return chapter_url
 
     elif "mangaclash.com" in url:
         pattern = re.compile(fr'(.*)({chapter}/)$')
-        chapter_a = soup.find('a', href= pattern)
+        chapter_a = soup.find('a', href=pattern)
 
         if chapter_a:
             chapter_url = chapter_a.get('href')
@@ -79,3 +82,8 @@ def get_last_chapter_url(url: str, chapter: str):
         if chapter_li:
             chapter_url = chapter_li.get('href')
             return chapter_url
+
+    else:
+        return "Unsupported site"
+
+    return ""
