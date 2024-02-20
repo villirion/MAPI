@@ -119,6 +119,7 @@
             <tbody>
                 <!-- Table rows will be added here dynamically -->
             </tbody>
+            <button onclick="addManhwa()">Add manhwa</button>
         </table>
     </div>
 
@@ -173,10 +174,8 @@
                     return 'status-link-broken'; // Class for Link Broken status
                 case 'Up to date':
                     return 'status-up-to-date'; // Class for Up to Date status
-                case 'New chapter available':
-                    return 'status-new-chapter'; // Class for New Chapter Available status
                 default:
-                    return ''; // Default class
+                    return 'status-new-chapter'; // Default class for New Chapter Available status
             }
         }
 
@@ -311,7 +310,7 @@
                     body: JSON.stringify({
                         TITLE: title,
                         SITE: site,
-                        CHAPTER: chapter,
+                        CHAPTER: parseInt(chapter),
                     }),
                 });
 

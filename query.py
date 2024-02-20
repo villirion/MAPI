@@ -1,8 +1,9 @@
 import requests
-from bs4 import BeautifulSoup, Comment
-import re
+from bs4 import BeautifulSoup
+from handle_site import getSite
+from error import Error, ErrorInvalidPayload
 
-def check_page_existence(url: str) -> bool:
+def pageExist(url: str) -> bool:
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
 
     try:
@@ -11,79 +12,47 @@ def check_page_existence(url: str) -> bool:
     except requests.RequestException:
         return False
 
-def check_valid(url: str, chapter: str) -> str:
-    if not check_page_existence(url):
+def isValid(url: str, chapter: str) -> bool:
+    if not pageExist(url):
         return False
 
-    chapter_url = get_chapter_url(url, str(chapter))
-    if chapter_url == "" or chapter_url == "Unsupported site":
-        return False
+    chapterFound = chapterExist(url, str(chapter))
 
-    return True
+    return chapterFound
 
-def get_status(url: str, chapter: int) -> str:
-    if not check_page_existence(url):
+def getStatus(url: str, chapter: int) -> tuple[str]:
+    nbChapter, err = newChapter(url, chapter)
+    if err != None:
         return "Link broken"
 
-    chapter_url = get_chapter_url(url, str(chapter + 1))
-    if chapter_url == "Unsupported site":
-        return "Unsupported site"
+    if nbChapter == 0:
+        return "Up to date"
 
-    if chapter_url != "":
-        return "New chapter available"
+    return str(nbChapter) + " new chapter available"
 
-    return "Up to date"
+def newChapter(url: str, chapter: int) -> tuple[int, Error]:
+    if not pageExist(url):
+        return 0, ErrorInvalidPayload()
 
-def get_chapter_url(url: str, chapter: str) -> str:
+    i = 1
+    chapterFound = chapterExist(url, str(chapter + i))
+    while chapterFound:
+        i += 1
+        chapterFound = chapterExist(url, str(chapter + i))
+
+    return (i - 1), None
+
+def chapterExist(url: str, chapter: str) -> bool:
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
-    response = requests.get(url, headers=headers)
+    try:
+        response = requests.get(url, headers=headers)
+    except requests.RequestException:
+        return False
+
     soup = BeautifulSoup(response.text, 'html.parser')
 
-    if "lumitoon.com" in url or "flamecomics.com" in url:
-        chapter_li = soup.find('li', {'data-num': chapter})
+    site, err = getSite(url)
+    if err != None:
+        return False
 
-        if chapter_li:
-            chapter_url = chapter_li.find('a')['href']
-            return chapter_url
-
-    elif "asuratoon.com" in url:
-        pattern = re.compile(fr'(^{chapter})(.*)')
-        chapter_li = soup.find('li', {'data-num': pattern})
-
-        if chapter_li:
-            chapter_url = chapter_li.find('a')['href']
-            return chapter_url
-
-    elif "manga4life.com" in url:
-        name = url.split("/")[-1]
-        chapter_url = "https://manga4life.com/read-online/" + name + "-chapter-" + chapter + ".html"
-
-        if check_page_existence(chapter_url):
-            response = requests.get(chapter_url, headers=headers)
-            soup = BeautifulSoup(response.text, 'html.parser')
-
-            comment_text = '404'
-            find = soup.find(string=lambda text: isinstance(text, Comment) and comment_text in text)
-            if not find:
-                return chapter_url
-
-    elif "mangaclash.com" in url:
-        pattern = re.compile(fr'(.*)({chapter}/)$')
-        chapter_a = soup.find('a', href=pattern)
-
-        if chapter_a:
-            chapter_url = chapter_a.get('href')
-            return chapter_url
-
-    elif "reaperscans.com" in url:
-        pattern = re.compile(fr'(.*)(-chapter-{chapter})$')
-        chapter_li = soup.find('a', href=pattern)
-
-        if chapter_li:
-            chapter_url = chapter_li.get('href')
-            return chapter_url
-
-    else:
-        return "Unsupported site"
-
-    return ""
+    return site.chapterExist(soup, chapter)
