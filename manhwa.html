@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manhwa List</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1a1a1a;
+            color: #fff;
+            margin: 0;
+            padding: 0;
+        }
+
+        h1 {
+            text-align: center;
+            color: #3498db; /* Blue color for header */
+        }
+
+        #app {
+            max-width: 1250px; /* Adjusted max-width for better readability */
+            margin: 20px auto;
+            background-color: #2c3e50; /* Darker background color */
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+        }
+
+        table {
+            width: 100%;
+            margin-top: 20px;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
+            border: 1px solid #34495e; /* Slightly darker border color */
+            padding: 12px;
+            text-align: center; /* Center the text in each cell */
+        }
+
+        th {
+            background-color: #2c3e50; /* Darker background for table headers */
+            color: #fff;
+        }
+
+        .button-container {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        button {
+            background-color: #2c3e50; /* Blue color for buttons */
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background-color 0.3s; /* Smooth transition on hover */
+        }
+
+        button:hover {
+            background-color: #2980b9; /* Darker blue on hover */
+        }
+
+        .update-button {
+            background-color: #27ae60; /* Green color for the Update button */
+        }
+
+        .delete-button {
+            background-color: #e74c3c; /* Red color for the Delete button */
+        }
+
+        /* Updated status colors */
+        .status-link-broken {
+            background-color: #e74c3c; /* Red for Link Broken status */
+        }
+
+        .status-up-to-date {
+            background-color: #2ecc71; /* Green for Up to Date status */
+        }
+
+        .status-new-chapter {
+            background-color: #f39c12; /* Yellow for New Chapter Available status */
+        }
+
+        /* Hide the action column by default */
+        .hide-action {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app">
+        <h1>Manhwa List</h1>
+
+        <div class="button-container">
+            <button onclick="toggleActionColumn()">Toggle Action Column</button>
+        </div>
+        <button onclick="addManhwa()">Add manhwa</button><button onclick="reloadManhwa()">Reload manhwa</button>
+        <table id="manhwaTable">
+            <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>Chapter</th>
+                    <th>Last Update</th>
+                    <th>Status</th>
+                    <th class="action-column">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Table rows will be added here dynamically -->
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        let isActionColumnVisible = false;
+
+        async function fetchData() {
+            const response = await fetch('http://127.0.0.1:5000/mapi?source=manhwa');
+            const data = await response.json();
+
+            // Get the table body
+            const tableBody = document.querySelector('#manhwaTable tbody');
+
+            // Clear existing rows
+            tableBody.innerHTML = '';
+
+            // Iterate over the data and create table rows with conditional styling
+            data.forEach(manhwa => {
+                const row = document.createElement('tr');
+                // Set the background color based on the status
+                row.classList.add(getStatusClass(manhwa.STATUS));
+                row.innerHTML = `
+                    <td><a href="${manhwa.SITE}" target="_blank">${manhwa.TITLE}</a></td>
+                    <td><button onclick="updateChapterMinusManhwa('${manhwa.TITLE}','${manhwa.CHAPTER}','${manhwa.SITE}')">-</button>
+                    ${manhwa.CHAPTER}
+                    <button onclick="updateChapterPlusManhwa('${manhwa.TITLE}','${manhwa.CHAPTER}','${manhwa.SITE}')">+</button></td>
+                    <td>${manhwa.LAST_UPDATE}</td>
+                    <td>${manhwa.STATUS}</td>
+                    <td class="action-column">
+                        <button onclick="updateUrlManhwa('${manhwa.TITLE}','${manhwa.CHAPTER}')">Update url</button>
+                        <button onclick="deleteManhwa('${manhwa.TITLE}')">Delete</button>
+                    </td>
+                `;
+                tableBody.appendChild(row);
+            });
+
+            // Toggle the action column visibility based on the variable
+            const actionColumns = document.querySelectorAll('.action-column');
+            actionColumns.forEach(column => {
+                if (isActionColumnVisible) {
+                    column.classList.remove('hide-action');
+                } else {
+                    column.classList.add('hide-action');
+                }
+            });
+        }
+
+        // Function to determine the background color based on the status
+        function getStatusClass(status) {
+            switch (status) {
+                case 'Link broken':
+                    return 'status-link-broken'; // Class for Link Broken status
+                case 'Up to date':
+                    return 'status-up-to-date'; // Class for Up to Date status
+                default:
+                    return 'status-new-chapter'; // Default class for New Chapter Available status
+            }
+        }
+
+        function toggleActionColumn() {
+            // Toggle the visibility variable
+            isActionColumnVisible = !isActionColumnVisible;
+            // Fetch data again to update the table
+            fetchData();
+        }
+
+        async function deleteManhwa(title) {
+            // Prompt user for confirmation
+            const isConfirmed = confirm(`Are you sure you want to delete '${title}'?`);
+
+            if (isConfirmed) {
+                // Send a DELETE request to delete the entry
+                const response = await fetch('http://127.0.0.1:5000/mapi?source=manhwa', {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        TITLE: title,
+                    }),
+                });
+
+                if (response.ok) {
+                    // Successfully deleted, fetch the updated data
+                    fetchData();
+                    console.log(`Successfully deleted '${title}'`);
+                } else {
+                    // Handle error
+                    console.error('Failed to delete:', response.statusText);
+                }
+            }
+        }
+
+        async function updateUrlManhwa(title, chapter) {
+            // Prompt user for information
+            const newUrl = prompt('Enter the new URL:');
+
+            // Check if the user provided information
+            if (title && newUrl) {
+                // Send a PATCH request to update the URL
+                const response = await fetch('http://127.0.0.1:5000/mapi?source=manhwa', {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        TITLE: title,
+                        SITE: newUrl,
+                        CHAPTER: parseInt(chapter),
+                    }),
+                });
+
+                if (response.ok) {
+                    // Successfully updated, fetch the updated data
+                    fetchData();
+                    console.log(`Successfully updated URL for '${title}' to '${newUrl}'`);
+                } else {
+                    // Handle error
+                    console.error('Failed to update URL:', response.statusText);
+                }
+            } else {
+                alert('Please provide all required information.');
+            }
+        }
+
+        async function updateChapterPlusManhwa(title, chapter, site) {
+            // Send a PATCH request to update the chapter by + 1
+            const response = await fetch('http://127.0.0.1:5000/mapi?source=manhwa', {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    TITLE: title,
+                    CHAPTER: parseInt(chapter) + 1,
+                    SITE: site,
+                }),
+            });
+
+            if (response.ok) {
+                // Successfully updated, fetch the updated data
+                fetchData();
+                console.log(`Successfully updated '${title}'`);
+            } else {
+                // Handle error
+                console.error('Failed to update:', response.statusText);
+            }
+        }
+
+        async function updateChapterMinusManhwa(title, chapter, site) {
+            // Send a PATCH request to update the chapter by - 1
+            const response = await fetch('http://127.0.0.1:5000/mapi?source=manhwa', {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    TITLE: title,
+                    CHAPTER: parseInt(chapter) - 1,
+                    SITE: site,
+                }),
+            });
+
+            if (response.ok) {
+                // Successfully updated, fetch the updated data
+                fetchData();
+                console.log(`Successfully updated '${title}'`);
+            } else {
+                // Handle error
+                console.error('Failed to update:', response.statusText);
+            }
+        }
+
+        async function addManhwa() {
+            // Prompt user for information
+            const title = prompt('Enter the title:');
+            const site = prompt('Enter the site:');
+            const chapter = prompt('Enter the chapter:');
+
+            // Check if the user provided information
+            if (title && site && chapter) {
+                // Send a POST request to add the new entry
+                const response = await fetch('http://127.0.0.1:5000/mapi?source=manhwa', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        TITLE: title,
+                        SITE: site,
+                        CHAPTER: parseInt(chapter),
+                    }),
+                });
+
+                if (response.ok) {
+                    // Successfully added, fetch the updated data
+                    fetchData();
+                    console.log(`Successfully added new entry - Title: ${title}, Site: ${site}, Chapter: ${chapter}`);
+                } else {
+                    // Handle error
+                    console.error('Failed to add new entry:', response.statusText);
+                }
+            } else {
+                alert('Please provide all required information.');
+            }
+        }
+
+        async function reloadManhwa() {
+            const response = await fetch('http://127.0.0.1:5000/mapi/reload?source=manhwa');
+            if (response.ok) {
+                fetchData();
+                console.log(`Successfully reload`);
+            } else {
+                // Handle error
+                console.error('Failed to reload:', response.statusText);
+            }
+        }
+
+        fetchData();
+    </script>
+
+</body>
+</html>

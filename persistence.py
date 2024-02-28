@@ -103,7 +103,7 @@ def Reload(csv: str):
         status = getStatus(url, chapter)
         date = datetime.now().date()
         df.loc[df["TITLE"] == title] = [title, url, chapter, status, date]
-
+    
     updateCSV(df, csv)
 
 def Delete(csv: str, data: dict) -> Error:

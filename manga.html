@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manhwa List</title>
+    <title>Manga List</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -100,13 +100,13 @@
 
 <body>
     <div id="app">
-        <h1>Manhwa List</h1>
+        <h1>Manga List</h1>
 
         <div class="button-container">
             <button onclick="toggleActionColumn()">Toggle Action Column</button>
         </div>
-
-        <table id="manhwaTable">
+        <button onclick="addManga()">Add manga</button><button onclick="reloadManga()">Reload manga</button>
+        <table id="mangaTable">
             <thead>
                 <tr>
                     <th>Title</th>
@@ -119,7 +119,6 @@
             <tbody>
                 <!-- Table rows will be added here dynamically -->
             </tbody>
-            <button onclick="addManhwa()">Add manhwa</button>
         </table>
     </div>
 
@@ -127,30 +126,31 @@
         let isActionColumnVisible = false;
 
         async function fetchData() {
-            const response = await fetch('http://127.0.0.1:5000/mapi/manhwa');
+            const response = await fetch('http://127.0.0.1:5000/mapi?source=manga');
             const data = await response.json();
 
             // Get the table body
-            const tableBody = document.querySelector('#manhwaTable tbody');
+            const tableBody = document.querySelector('#mangaTable tbody');
 
             // Clear existing rows
             tableBody.innerHTML = '';
 
             // Iterate over the data and create table rows with conditional styling
-            data.forEach(manwha => {
+            data.forEach(manga => {
                 const row = document.createElement('tr');
                 // Set the background color based on the status
-                row.classList.add(getStatusClass(manwha.STATUS));
+                row.classList.add(getStatusClass(manga.STATUS));
                 row.innerHTML = `
-                    <td><a href="${manwha.SITE}" target="_blank">${manwha.TITLE}</a></td>
-                    <td><button onclick="updateChapterMinusManhwa('${manwha.TITLE}','${manwha.CHAPTER}','${manwha.SITE}')">-</button>
-                    ${manwha.CHAPTER}
-                    <button onclick="updateChapterPlusManhwa('${manwha.TITLE}','${manwha.CHAPTER}','${manwha.SITE}')">+</button></td>
-                    <td>${manwha.LAST_UPDATE}</td>
-                    <td>${manwha.STATUS}</td>
+                    <td><a href="${manga.SITE}" target="_blank">${manga.TITLE}</a></td>
+                    <td><button onclick="updateChapterMinusManga('${manga.TITLE}','${manga.CHAPTER}','${manga.SITE}')">-</button>
+                    ${manga.CHAPTER}
+                    <button onclick="updateChapterPlusManga('${manga.TITLE}','${manga.CHAPTER}','${manga.SITE}')">+</button></td>
+                    <td>${manga.LAST_UPDATE}</td>
+                    <td>${manga.STATUS}</td>
                     <td class="action-column">
-                        <button onclick="updateUrlManhwa('${manwha.TITLE}','${manwha.CHAPTER}')">Update url</button>
-                        <button onclick="deleteManhwa('${manwha.TITLE}')">Delete</button>
+                        <button onclick="updateUrlManga('${manga.TITLE}','${manga.CHAPTER}')">Update url</button>
+                        <button onclick="updateChapterManga('${manga.TITLE}','${manga.SITE}')">Update chapter</button>
+                        <button onclick="deleteManga('${manga.TITLE}')">Delete</button>
                     </td>
                 `;
                 tableBody.appendChild(row);
@@ -186,13 +186,13 @@
             fetchData();
         }
 
-        async function deleteManhwa(title) {
+        async function deleteManga(title) {
             // Prompt user for confirmation
             const isConfirmed = confirm(`Are you sure you want to delete '${title}'?`);
 
             if (isConfirmed) {
                 // Send a DELETE request to delete the entry
-                const response = await fetch('http://127.0.0.1:5000/mapi/manhwa', {
+                const response = await fetch('http://127.0.0.1:5000/mapi?source=manga', {
                     method: 'DELETE',
                     headers: {
                         'Content-Type': 'application/json',
@@ -213,14 +213,14 @@
             }
         }
 
-        async function updateUrlManhwa(title, chapter) {
+        async function updateUrlManga(title, chapter) {
             // Prompt user for information
             const newUrl = prompt('Enter the new URL:');
 
             // Check if the user provided information
             if (title && newUrl) {
                 // Send a PATCH request to update the URL
-                const response = await fetch('http://127.0.0.1:5000/mapi/manhwa', {
+                const response = await fetch('http://127.0.0.1:5000/mapi?source=manga', {
                     method: 'PATCH',
                     headers: {
                         'Content-Type': 'application/json',
@@ -245,9 +245,41 @@
             }
         }
 
-        async function updateChapterPlusManhwa(title, chapter, site) {
+        async function updateChapterManga(title, url) {
+            // Prompt user for information
+            const newChapter = prompt('Enter the new Chapter:');
+
+            // Check if the user provided information
+            if (title && newChapter) {
+                // Send a PATCH request to update the URL
+                const response = await fetch('http://127.0.0.1:5000/mapi?source=manga', {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        TITLE: title,
+                        SITE: url,
+                        CHAPTER: parseInt(newChapter),
+                    }),
+                });
+
+                if (response.ok) {
+                    // Successfully updated, fetch the updated data
+                    fetchData();
+                    console.log(`Successfully updated chapter for '${title}' to '${newUrl}'`);
+                } else {
+                    // Handle error
+                    console.error('Failed to update chapter:', response.statusText);
+                }
+            } else {
+                alert('Please provide all required information.');
+            }
+        }
+
+        async function updateChapterPlusManga(title, chapter, site) {
             // Send a PATCH request to update the chapter by + 1
-            const response = await fetch('http://127.0.0.1:5000/mapi/manhwa', {
+            const response = await fetch('http://127.0.0.1:5000/mapi?source=manga', {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
@@ -269,9 +301,9 @@
             }
         }
 
-        async function updateChapterMinusManhwa(title, chapter, site) {
+        async function updateChapterMinusManga(title, chapter, site) {
             // Send a PATCH request to update the chapter by - 1
-            const response = await fetch('http://127.0.0.1:5000/mapi/manhwa', {
+            const response = await fetch('http://127.0.0.1:5000/mapi?source=manga', {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
@@ -293,7 +325,7 @@
             }
         }
 
-        async function addManhwa() {
+        async function addManga() {
             // Prompt user for information
             const title = prompt('Enter the title:');
             const site = prompt('Enter the site:');
@@ -302,7 +334,7 @@
             // Check if the user provided information
             if (title && site && chapter) {
                 // Send a POST request to add the new entry
-                const response = await fetch('http://127.0.0.1:5000/mapi/manhwa', {
+                const response = await fetch('http://127.0.0.1:5000/mapi?source=manga', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -324,6 +356,17 @@
                 }
             } else {
                 alert('Please provide all required information.');
+            }
+        }
+
+        async function reloadManga() {
+            const response = await fetch('http://127.0.0.1:5000/mapi/reload?source=manga');
+            if (response.ok) {
+                fetchData();
+                console.log(`Successfully reload`);
+            } else {
+                // Handle error
+                console.error('Failed to reload:', response.statusText);
             }
         }
 

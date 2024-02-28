@@ -30,17 +30,42 @@ def getStatus(url: str, chapter: int) -> tuple[str]:
 
     return str(nbChapter) + " new chapter available"
 
-def newChapter(url: str, chapter: int) -> tuple[int, Error]:
+def checkDecimal(url: str, chapter) -> int:
+    i = 0.1
+    chapterFound = chapterExist(url, str(chapter + i))
+    while chapterFound:
+        i += 0.1
+        chapterFound = chapterExist(url, str(chapter + i))
+
+    return (i*10) - 1
+
+def newChapter(url: str, chapter) -> tuple[int, Error]:
     if not pageExist(url):
         return 0, ErrorInvalidPayload()
 
     i = 1
+    nbChapter = 0
+    if chapter % 1 != 0:
+        nbChapter = checkDecimal(url, chapter)
+
+        newChapter = chapter // 1 + 1
+        chapterFound = chapterExist(url, str(chapter + i))
+        nbChapter += 1
+        while i != 0 and chapterFound:
+            i = checkDecimal(url, newChapter)
+            nbChapter += i
+            newChapter += 1
+
+        return int(nbChapter), None
+    
     chapterFound = chapterExist(url, str(chapter + i))
     while chapterFound:
         i += 1
         chapterFound = chapterExist(url, str(chapter + i))
 
-    return (i - 1), None
+    nbChapter += i
+
+    return (nbChapter - 1), None
 
 def chapterExist(url: str, chapter: str) -> bool:
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
