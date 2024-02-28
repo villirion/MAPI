@@ -50,8 +50,11 @@ def newChapter(url: str, chapter) -> tuple[int, Error]:
 
         newChapter = chapter // 1 + 1
         chapterFound = chapterExist(url, str(chapter + i))
+        if not chapterFound:
+            return 0, None
+        
         nbChapter += 1
-        while i != 0 and chapterFound:
+        while i != 0:
             i = checkDecimal(url, newChapter)
             nbChapter += i
             newChapter += 1
