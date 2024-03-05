@@ -12,7 +12,7 @@ def pageExist(url: str) -> bool:
     except requests.RequestException:
         return False
 
-def isValid(url: str, chapter: str) -> bool:
+def isValid(url: str, chapter: any) -> bool:
     if not pageExist(url):
         return False
 
@@ -20,7 +20,7 @@ def isValid(url: str, chapter: str) -> bool:
 
     return chapterFound
 
-def getStatus(url: str, chapter: int) -> tuple[str]:
+def getStatus(url: str, chapter: any) -> tuple[str]:
     nbChapter, err = newChapter(url, chapter)
     if err != None:
         return "Link broken"
@@ -30,7 +30,7 @@ def getStatus(url: str, chapter: int) -> tuple[str]:
 
     return str(nbChapter) + " new chapter available"
 
-def checkDecimal(url: str, chapter) -> int:
+def checkDecimal(url: str, chapter: any) -> int:
     i = 0.1
     chapterFound = chapterExist(url, str(chapter + i))
     while chapterFound:
@@ -39,7 +39,7 @@ def checkDecimal(url: str, chapter) -> int:
 
     return (i*10) - 1
 
-def newChapter(url: str, chapter) -> tuple[int, Error]:
+def newChapter(url: str, chapter: any) -> tuple[int, Error]:
     if not pageExist(url):
         return 0, ErrorInvalidPayload()
 
@@ -52,7 +52,7 @@ def newChapter(url: str, chapter) -> tuple[int, Error]:
         chapterFound = chapterExist(url, str(chapter + i))
         if not chapterFound:
             return 0, None
-        
+
         nbChapter += 1
         while i != 0:
             i = checkDecimal(url, newChapter)
@@ -60,7 +60,7 @@ def newChapter(url: str, chapter) -> tuple[int, Error]:
             newChapter += 1
 
         return int(nbChapter), None
-    
+
     chapterFound = chapterExist(url, str(chapter + i))
     while chapterFound:
         i += 1

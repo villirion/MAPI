@@ -1,101 +1,39 @@
 import pandas as pd
-from query import getStatus, isValid
+from query import getStatus
 from datetime import datetime
-from error import Error, ErrorInvalidPayload, ErrorNotFound, ErrorInvalidFormat
+from error import Error
 
-def setupCSV(csv: str) -> pd.DataFrame:
-    df = pd.read_csv(csv)
-
-    return df
-
-def updateCSV(df: pd.DataFrame, csv: str) -> pd.DataFrame:
-    df.to_csv(csv, index=False)
-
-def List(csv: str) -> list[dict]:
-    df = setupCSV(csv)
-
+def GetAll(df: pd.DataFrame) -> list[dict]:
     jsonList = []
 
     for _, row in df.iterrows():
         rowDict = row.to_dict()
         jsonList.append(rowDict)
 
-    return jsonList
+    jsonList_sorted = sorted(jsonList, key=lambda x: x['CHAPTER'], reverse=True)
 
-"""
-def Get(csv: str, title: str) -> tuple[dict, Error]:
-    df = setupCSV(csv)
+    return jsonList_sorted
 
-    entryExist = df[df["TITLE"] == title]
-
-    if entryExist.empty:
-        return None, ErrorNotFound()
-
-    row = entryExist.iloc[0]
-    jsonRow = row.to_dict()
-
-    return jsonRow, None
-"""
-
-def Post(csv: str, data: dict) -> Error:
-    df = setupCSV(csv)
-
-    requiredKeys = {'TITLE', 'SITE', 'CHAPTER'}
-    if not requiredKeys.issubset(data.keys()):
-        return ErrorInvalidFormat()
-
-    title = data['TITLE']
-    url = data['SITE']
-    chapter = data['CHAPTER']
-
-    if not isValid(url, chapter):
-        return ErrorInvalidPayload()
-
-    status = getStatus(url, chapter)
-    date = datetime.now().date()
-
-    df.loc[len(df.index)] = [title, url, chapter, status, date]
-
-    updateCSV(df, csv)
-
-    return None
-
-def Update(csv: str, data: dict) -> Error:
-    df = setupCSV(csv)
+def Exist(df: pd.DataFrame, title: str) -> bool:
     df_copy = df.copy()
-
-    requiredKeys = {'TITLE', 'SITE', 'CHAPTER'}
-    if not requiredKeys.issubset(data.keys()):
-        return ErrorInvalidFormat()
-
-    title = data['TITLE']
-
     entryExist = df_copy[df_copy["TITLE"] == title]
 
     if entryExist.empty:
-        return ErrorNotFound()
+        return False
 
-    url = data['SITE']
-    chapter = data['CHAPTER']
+    return True
 
-    if not isValid(url, chapter):
-        return ErrorInvalidPayload()
-
-    status = getStatus(url, chapter)
-    date = datetime.now().date()
-
-    if entryExist.iloc[0]['CHAPTER'] == chapter and entryExist.iloc[0]['STATUS'] == status and entryExist.iloc[0]['SITE'] == url:
-        return None
-
-    df.loc[df["TITLE"] == title] = [title, url, chapter, status, date]
-
-    updateCSV(df, csv)
+def Insert(df: pd.DataFrame, title: str, url: str, chapter: any, status: str, date: any) -> Error:
+    df.loc[len(df.index)] = [title, url, chapter, status, date]
 
     return None
 
-def Reload(csv: str):
-    df = setupCSV(csv)
+def Replace(df: pd.DataFrame, title: str, url: str, chapter: any, status: str, date: any) -> Error:
+    df.loc[df["TITLE"] == title] = [title, url, chapter, status, date]
 
+    return None
+
+def ReloadAll(df: pd.DataFrame):
     for _, row in df.iterrows():
         title = row['TITLE']
         url = row['SITE']
@@ -103,26 +41,8 @@ def Reload(csv: str):
         status = getStatus(url, chapter)
         date = datetime.now().date()
         df.loc[df["TITLE"] == title] = [title, url, chapter, status, date]
-    
-    updateCSV(df, csv)
 
-def Delete(csv: str, data: dict) -> Error:
-    df = setupCSV(csv)
-    df_copy = df.copy()
-
-    requiredKeys = {'TITLE'}
-    if not requiredKeys.issubset(data.keys()):
-        return ErrorInvalidFormat()
-
-    title = data['TITLE']
-
-    entryExist = df_copy[df_copy["TITLE"] == title]
-
-    if entryExist.empty:
-        return ErrorNotFound()
-
+def Remove(df: pd.DataFrame, title: str) -> tuple[pd.DataFrame, Error]:
     df = df.drop(df.index[df["TITLE"] == title])
 
-    updateCSV(df, csv)
-
-    return None
+    return df, None
