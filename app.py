@@ -1,5 +1,5 @@
 from flask import Flask, request
-from application import List, Post, Update, Reload, Delete
+from application import List, Post, Update, ReloadAll, Delete, Reload
 from flask_cors import CORS
 from handle_response import HandleResponse, HandleResponseWithBody
 
@@ -34,12 +34,19 @@ def delete():
     return HandleResponse(Delete(source, data))
 
 @app.route('/mapi/reload', methods=['GET'])
-def reload():
+def reloadAll():
     source = request.args.get('source')
 
-    Reload(source)
+    ReloadAll(source)
 
     return HandleResponse(None)
+
+@app.route('/mapi/reload', methods=['PATCH'])
+def reload():
+    data = request.json
+    source = request.args.get('source')
+
+    return HandleResponse(Reload(source, data))
 
 if __name__ == '__main__':
     app.run(debug=True)

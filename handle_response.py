@@ -1,5 +1,5 @@
 from flask import make_response, jsonify, Response
-from error import Error
+from model.entity_error import Error
 
 def HandleResponse(err: Error) -> tuple[Response, Error]:
     if err != None:

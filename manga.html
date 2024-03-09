@@ -105,13 +105,12 @@
         <div class="button-container">
             <button onclick="toggleActionColumn()">Toggle Action Column</button>
         </div>
-        <button onclick="addManga()">Add manga</button><button onclick="reloadManga()">Reload manga</button>
+        <button onclick="addManga()">Add manga</button><button onclick="reloadAllManga()">Reload manga</button>
         <table id="mangaTable">
             <thead>
                 <tr>
                     <th>Title</th>
                     <th>Chapter</th>
-                    <th>Last Update</th>
                     <th>Status</th>
                     <th class="action-column">Action</th>
                 </tr>
@@ -145,12 +144,12 @@
                     <td><button onclick="updateChapterMinusManga('${manga.TITLE}','${manga.CHAPTER}','${manga.SITE}')">-</button>
                     ${manga.CHAPTER}
                     <button onclick="updateChapterPlusManga('${manga.TITLE}','${manga.CHAPTER}','${manga.SITE}')">+</button></td>
-                    <td>${manga.LAST_UPDATE}</td>
                     <td>${manga.STATUS}</td>
                     <td class="action-column">
                         <button onclick="updateUrlManga('${manga.TITLE}','${manga.CHAPTER}')">Update url</button>
                         <button onclick="updateChapterManga('${manga.TITLE}','${manga.SITE}')">Update chapter</button>
                         <button onclick="deleteManga('${manga.TITLE}')">Delete</button>
+                        <button onclick="reloadManga('${manga.TITLE}')">Reload</button>
                     </td>
                 `;
                 tableBody.appendChild(row);
@@ -359,8 +358,27 @@
             }
         }
 
-        async function reloadManga() {
+        async function reloadAllManga() {
             const response = await fetch('http://127.0.0.1:5000/mapi/reload?source=manga');
+            if (response.ok) {
+                fetchData();
+                console.log(`Successfully reload`);
+            } else {
+                // Handle error
+                console.error('Failed to reload:', response.statusText);
+            }
+        }
+
+        async function reloadManga(title) {
+            const response = await fetch('http://127.0.0.1:5000/mapi/reload?source=manga', {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    TITLE: title,
+                }),
+            });
             if (response.ok) {
                 fetchData();
                 console.log(`Successfully reload`);

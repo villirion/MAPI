@@ -105,13 +105,12 @@
         <div class="button-container">
             <button onclick="toggleActionColumn()">Toggle Action Column</button>
         </div>
-        <button onclick="addManhwa()">Add manhwa</button><button onclick="reloadManhwa()">Reload manhwa</button>
+        <button onclick="addManhwa()">Add manhwa</button><button onclick="reloadAllManhwa()">Reload manhwa</button>
         <table id="manhwaTable">
             <thead>
                 <tr>
                     <th>Title</th>
                     <th>Chapter</th>
-                    <th>Last Update</th>
                     <th>Status</th>
                     <th class="action-column">Action</th>
                 </tr>
@@ -145,11 +144,11 @@
                     <td><button onclick="updateChapterMinusManhwa('${manhwa.TITLE}','${manhwa.CHAPTER}','${manhwa.SITE}')">-</button>
                     ${manhwa.CHAPTER}
                     <button onclick="updateChapterPlusManhwa('${manhwa.TITLE}','${manhwa.CHAPTER}','${manhwa.SITE}')">+</button></td>
-                    <td>${manhwa.LAST_UPDATE}</td>
                     <td>${manhwa.STATUS}</td>
                     <td class="action-column">
                         <button onclick="updateUrlManhwa('${manhwa.TITLE}','${manhwa.CHAPTER}')">Update url</button>
                         <button onclick="deleteManhwa('${manhwa.TITLE}')">Delete</button>
+                        <button onclick="reloadManhwa('${manhwa.TITLE}')">Reload</button>
                     </td>
                 `;
                 tableBody.appendChild(row);
@@ -326,8 +325,27 @@
             }
         }
 
-        async function reloadManhwa() {
+        async function reloadAllManhwa() {
             const response = await fetch('http://127.0.0.1:5000/mapi/reload?source=manhwa');
+            if (response.ok) {
+                fetchData();
+                console.log(`Successfully reload`);
+            } else {
+                // Handle error
+                console.error('Failed to reload:', response.statusText);
+            }
+        }
+
+        async function reloadManhwa(title) {
+            const response = await fetch('http://127.0.0.1:5000/mapi/reload?source=manhwa', {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    TITLE: title,
+                }),
+            });
             if (response.ok) {
                 fetchData();
                 console.log(`Successfully reload`);

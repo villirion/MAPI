@@ -1,116 +1,116 @@
-from query import getStatus, isValid
-from datetime import datetime
-from error import Error, ErrorInvalidPayload, ErrorInvalidFormat
-from workspace import getWorkspace, saveWorkspace
-from persistence import Insert, GetAll, Exist, Replace, ReloadAll, Remove
+from model.entity_error import Error, ErrorInvalidPayload, ErrorInvalidFormat
+from model.entity_scan import Scan, NewScan
+from model.entity_workspace import getWorkspace
+from dataframe import Insert, GetAll, Exist, Replace, ReplaceStatusAll, Remove, Get
+from model.entity_site import getSite
+from model.entity_status import StatusLinkBroken
 
 def List(source: str) -> list[dict]:
-    df, err = getWorkspace(source)
+    workspace, err = getWorkspace(source)
     if err != None:
         return err
 
-    return GetAll(df)
+    return GetAll(workspace.DF())
 
 def Post(source: str, data: dict) -> Error:
-    df, err = getWorkspace(source)
+    workspace, err = getWorkspace(source)
     if err != None:
         return err
 
-    title, url, chapter, err = getKeys(data)
+    scan, err = createScan(data)
     if err != None:
         return err
 
-    if not isValid(url, chapter):
-        return ErrorInvalidPayload()
+    Insert(workspace.DF(), scan)
 
-    status, date = getDateAndStatus(url, chapter)
-
-    err = Insert(df, title, url, chapter, status, date)
-    if err != None:
-        return err
-
-    err = saveWorkspace(df, source)
-    if err != None:
-        return err
+    workspace.Save()
 
     return None
 
 def Update(source: str, data: dict) -> Error:
-    df, err = getWorkspace(source)
+    workspace, err = getWorkspace(source)
     if err != None:
         return err
 
-    title, url, chapter, err = getKeys(data)
+    scan, err = createScan(data)
     if err != None:
         return err
 
-    if not Exist(df, title):
+    if not Exist(workspace.DF(), scan.Title()):
         return ErrorInvalidPayload()
 
-    if not isValid(url, chapter):
-        return ErrorInvalidPayload()
+    Replace(workspace.DF(), scan)
 
-    status, date = getDateAndStatus(url, chapter)
-
-    err = Replace(df, title, url, chapter, status, date)
-    if err != None:
-        return err
-
-    err = saveWorkspace(df, source)
-    if err != None:
-        return err
+    workspace.Save()
 
     return None
 
 def Delete(source: str, data: dict) -> Error:
-    df, err = getWorkspace(source)
+    workspace, err = getWorkspace(source)
     if err != None:
         return err
 
-    title, err = getKey(data)
+    title, err = getTitle(data)
     if err != None:
         return err
 
-    if not Exist(df, title):
+    if not Exist(workspace.DF(), title):
         return ErrorInvalidPayload()
 
-    df, err = Remove(df, title)
-    if err != None:
-        return err
+    Remove(workspace.DF(), title)
 
-    err = saveWorkspace(df, source)
-    if err != None:
-        return err
+    workspace.Save()
 
     return None
 
-def Reload(source: str):
-    df, err = getWorkspace(source)
+def Reload(source: str, data: dict) -> Error:
+    workspace, err = getWorkspace(source)
     if err != None:
         return err
 
-    ReloadAll(df)
-
-    err = saveWorkspace(df, source)
+    title, err = getTitle(data)
     if err != None:
         return err
 
-def getKey(data: dict) -> tuple[str, Error]:
+    scan = Get(workspace.DF(), title)
+    if scan == None:
+        return ErrorInvalidPayload()
+
+    if scan['STATUS'] == StatusLinkBroken().String():
+        site, _ = getSite(scan['SITE'])
+        scan['SITE'] = site.reloadURL(scan['TITLE'])
+
+    updatedScan, err = NewScan(scan['TITLE'], scan['SITE'], scan['CHAPTER'])
+    if err != None:
+        return err
+
+    Replace(workspace.DF(), updatedScan)
+
+    workspace.Save()
+
+    return None
+
+def ReloadAll(source: str) -> Error:
+    workspace, err = getWorkspace(source)
+    if err != None:
+        return err
+
+    ReplaceStatusAll(workspace.DF())
+
+    workspace.Save()
+
+    return None
+
+def getTitle(data: dict) -> tuple[str, Error]:
     requiredKeys = {'TITLE'}
     if not requiredKeys.issubset(data.keys()):
         return None, ErrorInvalidFormat()
 
     return data['TITLE'], None
 
-def getKeys(data: dict) -> tuple[str, str, any, Error]:
+def createScan(data: dict) -> tuple[Scan, Error]:
     requiredKeys = {'TITLE', 'SITE', 'CHAPTER'}
     if not requiredKeys.issubset(data.keys()):
-        return None, None, None, ErrorInvalidFormat()
+        return None, ErrorInvalidFormat()
 
-    return data['TITLE'], data['SITE'], data['CHAPTER'], None
-
-def getDateAndStatus(url: str, chapter: any) -> tuple[str, any]:
-    status = getStatus(url, chapter)
-    date = datetime.now().date()
-
-    return status, date
+    return NewScan(data['TITLE'], data['SITE'], data['CHAPTER'])
