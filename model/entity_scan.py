@@ -2,12 +2,13 @@
 from model.entity_error import Error, ErrorInvalidPayload
 from chapter import chapterExist
 from model.entity_status import NewStatus, Status
+from title import toPersistedTitle
 
 class Scan():
     def __init__(self, title: str, url: str, chapter: any):
         self.url = url
         self.chapter = chapter
-        self.title = title
+        self.title = toPersistedTitle(title)
         status = NewStatus(url, chapter)
         self.status = status.String()
 

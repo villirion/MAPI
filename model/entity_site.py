@@ -3,13 +3,14 @@ from abc import ABC, abstractmethod
 from model.entity_error import Error, ErrorInvalidPayload
 from bs4 import BeautifulSoup, Comment
 from query import pageExist
+from title import toPersistedTitle
 
 class Site(ABC):
     @abstractmethod
     def chapterExist(self, soup: BeautifulSoup, chapter: str) -> bool:
         pass
 
-    def reloadURL(self, soup: BeautifulSoup, title: str) -> str:
+    def reloadURL(self, title: str) -> str:
         pass
 
 class Asuratoon(Site):
@@ -28,7 +29,7 @@ class Asuratoon(Site):
             return None
 
         soup = BeautifulSoup(response.text, 'html.parser')
-        urlFound = soup.find('a', {'title': title})
+        urlFound = soup.find('a', {'title': toPersistedTitle(title)})
         if not urlFound:
             return None
 
@@ -50,7 +51,7 @@ class Lumitoon(Site):
             return None
 
         soup = BeautifulSoup(response.text, 'html.parser')
-        urlFound = soup.find('a', {'title': title})
+        urlFound = soup.find('a', {'title': toPersistedTitle(title)})
         if not urlFound:
             return None
 
@@ -92,7 +93,7 @@ class Flamecomics(Site):
             return None
 
         soup = BeautifulSoup(response.text, 'html.parser')
-        urlFound = soup.find('a', {'title': title})
+        urlFound = soup.find('a', {'title': toPersistedTitle(title)})
         if not urlFound:
             return None
 

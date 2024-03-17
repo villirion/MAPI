@@ -4,6 +4,7 @@ from model.entity_workspace import getWorkspace
 from dataframe import Insert, GetAll, Exist, Replace, ReplaceStatusAll, Remove, Get
 from model.entity_site import getSite
 from model.entity_status import StatusLinkBroken
+from title import toOriginalTitle
 
 def List(source: str) -> list[dict]:
     workspace, err = getWorkspace(source)
@@ -78,7 +79,9 @@ def Reload(source: str, data: dict) -> Error:
 
     if scan['STATUS'] == StatusLinkBroken().String():
         site, _ = getSite(scan['SITE'])
-        scan['SITE'] = site.reloadURL(scan['TITLE'])
+        newSite = site.reloadURL(toOriginalTitle(scan['TITLE']))
+        if newSite != None:
+            scan['SITE'] = newSite
 
     updatedScan, err = NewScan(scan['TITLE'], scan['SITE'], scan['CHAPTER'])
     if err != None:
