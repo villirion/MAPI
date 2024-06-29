@@ -6,11 +6,14 @@ from handle_response import HandleResponse, HandleResponseWithBody
 app = Flask(__name__)
 CORS(app)
 
+
 @app.route('/mapi', methods=['GET'])
 def get():
     source = request.args.get('source')
+    tier = request.args.get('tier')
 
-    return HandleResponseWithBody(List(source), None)
+    return HandleResponseWithBody(List(source, tier), None)
+
 
 @app.route('/mapi', methods=['POST'])
 def post():
@@ -19,6 +22,7 @@ def post():
 
     return HandleResponse(Post(source, data))
 
+
 @app.route('/mapi', methods=['PATCH'])
 def patch():
     data = request.json
@@ -26,12 +30,14 @@ def patch():
 
     return HandleResponse(Update(source, data))
 
+
 @app.route('/mapi', methods=['DELETE'])
 def delete():
     data = request.json
     source = request.args.get('source')
 
     return HandleResponse(Delete(source, data))
+
 
 @app.route('/mapi/reload', methods=['GET'])
 def reloadAll():
@@ -41,12 +47,14 @@ def reloadAll():
 
     return HandleResponse(None)
 
+
 @app.route('/mapi/reload', methods=['PATCH'])
 def reload():
     data = request.json
     source = request.args.get('source')
 
     return HandleResponse(Reload(source, data))
+
 
 if __name__ == '__main__':
     app.run(debug=True)

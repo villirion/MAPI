@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from model.entity_error import Error, ErrorInvalidPayload
 from bs4 import BeautifulSoup, Comment
 from query import pageExist
-from title import toPersistedTitle
+
 
 class Site(ABC):
     @abstractmethod
@@ -12,6 +12,7 @@ class Site(ABC):
 
     def reloadURL(self, title: str) -> str:
         pass
+
 
 class Asuratoon(Site):
     def chapterExist(self, soup: BeautifulSoup, chapter: str) -> bool:
@@ -29,14 +30,14 @@ class Asuratoon(Site):
             return None
 
         soup = BeautifulSoup(response.text, 'html.parser')
-        urlFound = soup.find('a', {'title': toPersistedTitle(title)})
+        urlFound = soup.find('a', {'title': title})
         if not urlFound:
             return None
 
         return urlFound.get('href')
 
 
-class Lumitoon(Site):
+class Luminouscomics(Site):
     def chapterExist(self, soup: BeautifulSoup, chapter: str) -> bool:
         chapterFound = soup.find('li', {'data-num': chapter})
 
@@ -46,16 +47,17 @@ class Lumitoon(Site):
         return True
 
     def reloadURL(self, title: str) -> str:
-        response, ok = pageExist("https://lumitoon.com/?s=" + title)
+        response, ok = pageExist("https://luminouscomics.org/?s=" + title.replace("’", "'"))
         if not ok:
             return None
 
         soup = BeautifulSoup(response.text, 'html.parser')
-        urlFound = soup.find('a', {'title': toPersistedTitle(title)})
+        urlFound = soup.find('a', {'title': title})
         if not urlFound:
             return None
 
         return urlFound.get('href')
+
 
 class Manga4life(Site):
     def __init__(self, url: str):
@@ -78,6 +80,7 @@ class Manga4life(Site):
     def reloadURL(self, title: str) -> str:
         return None
 
+
 class Flamecomics(Site):
     def chapterExist(self, soup: BeautifulSoup, chapter: str) -> bool:
         chapterFound = soup.find('li', {'data-num': chapter})
@@ -93,13 +96,14 @@ class Flamecomics(Site):
             return None
 
         soup = BeautifulSoup(response.text, 'html.parser')
-        urlFound = soup.find('a', {'title': toPersistedTitle(title)})
+        urlFound = soup.find('a', {'title': title})
         if not urlFound:
             return None
 
         return urlFound.get('href')
 
-class Mangaclash(Site):
+
+class toonclash(Site):
     def chapterExist(self, soup: BeautifulSoup, chapter: str) -> bool:
         pattern = re.compile(fr'(.*)({chapter}/)$')
         chapterFound = soup.find('a', href=pattern)
@@ -111,6 +115,7 @@ class Mangaclash(Site):
 
     def reloadURL(self, title: str) -> str:
         return None
+
 
 class Reaperscans(Site):
     def chapterExist(self, soup: BeautifulSoup, chapter: str) -> bool:
@@ -125,9 +130,10 @@ class Reaperscans(Site):
     def reloadURL(self, title: str) -> str:
         return None
 
+
 def getSite(url: str) -> tuple[Site, Error]:
-    if "lumitoon.com" in url:
-        return Lumitoon(), None
+    if "luminouscomics.org" in url:
+        return Luminouscomics(), None
 
     if "asuratoon.com" in url:
         return Asuratoon(), None
@@ -135,8 +141,8 @@ def getSite(url: str) -> tuple[Site, Error]:
     if "manga4life.com" in url:
         return Manga4life(url), None
 
-    if "mangaclash.com" in url:
-        return Mangaclash(), None
+    if "toonclash.com" in url:
+        return toonclash(), None
 
     if "flamecomics.com" in url:
         return Flamecomics(), None

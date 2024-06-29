@@ -2,15 +2,16 @@
 from model.entity_error import Error, ErrorInvalidPayload
 from chapter import chapterExist
 from model.entity_status import NewStatus, Status
-from title import toPersistedTitle
+
 
 class Scan():
-    def __init__(self, title: str, url: str, chapter: any):
+    def __init__(self, title: str, url: str, chapter: any, tier: int):
         self.url = url
         self.chapter = chapter
-        self.title = toPersistedTitle(title)
+        self.title = title
         status = NewStatus(url, chapter)
         self.status = status.String()
+        self.tier = tier
 
     def URL(self) -> str:
         return self.url
@@ -24,14 +25,21 @@ class Scan():
     def Status(self) -> Status:
         return self.status
 
-def NewScan(title: str, url: str, chapter: any) -> tuple[Scan, Error]:
+    def Tier(self) -> int:
+        return self.tier
+
+
+def NewScan(title: str, url: str, chapter: any, tier: int) -> tuple[Scan, Error]:
     if not isValid(url, chapter):
         return None, ErrorInvalidPayload()
 
-    return Scan(title, url, chapter), None
+    return Scan(title, url, chapter, tier), None
 
-def InstatiateScanFromDataframe(title: str, url: str, chapter: any) -> Scan:
-    return Scan(title, url, chapter)
+def NewScanFromDatabase(title: str, url: str, chapter: any, tier: int) -> Scan:
+    return Scan(title, url, chapter, tier)
+
+def InstatiateScanFromDataframe(title: str, url: str, chapter: any, tier: int) -> Scan:
+    return Scan(title, url, chapter, tier)
 
 
 def isValid(url: str, chapter: any) -> bool:

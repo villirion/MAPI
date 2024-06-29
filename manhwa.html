@@ -95,6 +95,11 @@
         .hide-action {
             display: none;
         }
+
+        /* Visual indicator for selected tier button */
+        .selected-tier {
+            background-color: #3498db; /* Blue color for selected tier */
+        }
     </style>
 </head>
 
@@ -104,8 +109,16 @@
 
         <div class="button-container">
             <button onclick="toggleActionColumn()">Toggle Action Column</button>
+            <button onclick="addManhwa()">Add Manhwa</button>
+            <button onclick="reloadAllManhwa()">Reload Manhwa</button>
         </div>
-        <button onclick="addManhwa()">Add manhwa</button><button onclick="reloadAllManhwa()">Reload manhwa</button>
+
+        <div class="button-container">
+            <button id="tier1" onclick="fetchData(1)">TIER 1</button>
+            <button id="tier2" onclick="fetchData(2)">TIER 2</button>
+            <button id="tier3" onclick="fetchData(3)">TIER 3</button>
+        </div>
+
         <table id="manhwaTable">
             <thead>
                 <tr>
@@ -123,9 +136,11 @@
 
     <script>
         let isActionColumnVisible = false;
+        let currentTier = 1;
 
-        async function fetchData() {
-            const response = await fetch('http://127.0.0.1:5000/mapi?source=manhwa');
+        async function fetchData(tier) {
+            currentTier = tier; // Set the current tier
+            const response = await fetch(`http://127.0.0.1:5000/mapi?source=manhwa&tier=${tier}`);
             const data = await response.json();
 
             // Get the table body
@@ -141,14 +156,15 @@
                 row.classList.add(getStatusClass(manhwa.STATUS));
                 row.innerHTML = `
                     <td><a href="${manhwa.SITE}" target="_blank">${manhwa.TITLE}</a></td>
-                    <td><button onclick="updateChapterMinusManhwa('${manhwa.TITLE}','${manhwa.CHAPTER}','${manhwa.SITE}')">-</button>
+                    <td><button onclick="updateChapterMinusManhwa('${manhwa.TITLE}','${manhwa.CHAPTER}','${manhwa.SITE}','${manhwa.TIER}')">-</button>
                     ${manhwa.CHAPTER}
-                    <button onclick="updateChapterPlusManhwa('${manhwa.TITLE}','${manhwa.CHAPTER}','${manhwa.SITE}')">+</button></td>
+                    <button onclick="updateChapterPlusManhwa('${manhwa.TITLE}','${manhwa.CHAPTER}','${manhwa.SITE}','${manhwa.TIER}')">+</button></td>
                     <td>${manhwa.STATUS}</td>
                     <td class="action-column">
-                        <button onclick="updateUrlManhwa('${manhwa.TITLE}','${manhwa.CHAPTER}')">Update url</button>
+                        <button onclick="updateUrlManhwa('${manhwa.TITLE}','${manhwa.CHAPTER}','${manhwa.TIER}')">Update URL</button>
                         <button onclick="deleteManhwa('${manhwa.TITLE}')">Delete</button>
                         <button onclick="reloadManhwa('${manhwa.TITLE}')">Reload</button>
+                        ${getTierButtons(manhwa.TIER, manhwa.TITLE, manhwa.CHAPTER, manhwa.SITE)}
                     </td>
                 `;
                 tableBody.appendChild(row);
@@ -163,79 +179,74 @@
                     column.classList.add('hide-action');
                 }
             });
+
+            // Update the visual indicator for the selected tier
+            updateSelectedTierButton();
         }
 
-        // Function to determine the background color based on the status
         function getStatusClass(status) {
             switch (status) {
                 case 'Link broken':
-                    return 'status-link-broken'; // Class for Link Broken status
+                    return 'status-link-broken';
                 case 'Up to date':
-                    return 'status-up-to-date'; // Class for Up to Date status
+                    return 'status-up-to-date';
                 default:
-                    return 'status-new-chapter'; // Default class for New Chapter Available status
+                    return 'status-new-chapter';
             }
         }
 
         function toggleActionColumn() {
-            // Toggle the visibility variable
             isActionColumnVisible = !isActionColumnVisible;
-            // Fetch data again to update the table
-            fetchData();
+            fetchData(currentTier);
+        }
+
+        function updateSelectedTierButton() {
+            document.querySelectorAll('.button-container button').forEach(button => {
+                button.classList.remove('selected-tier');
+            });
+            document.getElementById(`tier${currentTier}`).classList.add('selected-tier');
         }
 
         async function deleteManhwa(title) {
-            // Prompt user for confirmation
             const isConfirmed = confirm(`Are you sure you want to delete '${title}'?`);
 
             if (isConfirmed) {
-                // Send a DELETE request to delete the entry
                 const response = await fetch('http://127.0.0.1:5000/mapi?source=manhwa', {
                     method: 'DELETE',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({
-                        TITLE: title,
-                    }),
+                    body: JSON.stringify({ TITLE: title }),
                 });
 
                 if (response.ok) {
-                    // Successfully deleted, fetch the updated data
-                    fetchData();
+                    fetchData(currentTier);
                     console.log(`Successfully deleted '${title}'`);
                 } else {
-                    // Handle error
                     console.error('Failed to delete:', response.statusText);
                 }
             }
         }
 
-        async function updateUrlManhwa(title, chapter) {
-            // Prompt user for information
+        async function updateUrlManhwa(title, chapter, tier) {
             const newUrl = prompt('Enter the new URL:');
 
-            // Check if the user provided information
             if (title && newUrl) {
-                // Send a PATCH request to update the URL
                 const response = await fetch('http://127.0.0.1:5000/mapi?source=manhwa', {
                     method: 'PATCH',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         TITLE: title,
                         SITE: newUrl,
                         CHAPTER: parseInt(chapter),
+                        TIER: tier,
                     }),
                 });
 
                 if (response.ok) {
-                    // Successfully updated, fetch the updated data
-                    fetchData();
+                    fetchData(currentTier);
                     console.log(`Successfully updated URL for '${title}' to '${newUrl}'`);
                 } else {
-                    // Handle error
                     console.error('Failed to update URL:', response.statusText);
                 }
             } else {
@@ -243,81 +254,88 @@
             }
         }
 
-        async function updateChapterPlusManhwa(title, chapter, site) {
-            // Send a PATCH request to update the chapter by + 1
+        async function updateTierManhwa(title, chapter, site, tier) {
             const response = await fetch('http://127.0.0.1:5000/mapi?source=manhwa', {
                 method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    TITLE: title,
+                    SITE: site,
+                    CHAPTER: parseInt(chapter),
+                    TIER: tier,
+                }),
+            });
+
+            if (response.ok) {
+                fetchData(currentTier);
+                console.log(`Successfully updated tier for '${title}' to '${tier}'`);
+            } else {
+                console.error('Failed to update tier:', response.statusText);
+            }
+        }
+
+        async function updateChapterPlusManhwa(title, chapter, site, tier) {
+            const response = await fetch('http://127.0.0.1:5000/mapi?source=manhwa', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     TITLE: title,
                     CHAPTER: parseInt(chapter) + 1,
                     SITE: site,
+                    TIER: tier,
                 }),
             });
 
             if (response.ok) {
-                // Successfully updated, fetch the updated data
-                fetchData();
+                fetchData(currentTier);
                 console.log(`Successfully updated '${title}'`);
             } else {
-                // Handle error
                 console.error('Failed to update:', response.statusText);
             }
         }
 
-        async function updateChapterMinusManhwa(title, chapter, site) {
-            // Send a PATCH request to update the chapter by - 1
+        async function updateChapterMinusManhwa(title, chapter, site, tier) {
             const response = await fetch('http://127.0.0.1:5000/mapi?source=manhwa', {
                 method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     TITLE: title,
                     CHAPTER: parseInt(chapter) - 1,
                     SITE: site,
+                    TIER: tier,
                 }),
             });
 
             if (response.ok) {
-                // Successfully updated, fetch the updated data
-                fetchData();
+                fetchData(currentTier);
                 console.log(`Successfully updated '${title}'`);
             } else {
-                // Handle error
                 console.error('Failed to update:', response.statusText);
             }
         }
 
         async function addManhwa() {
-            // Prompt user for information
             const title = prompt('Enter the title:');
             const site = prompt('Enter the site:');
             const chapter = prompt('Enter the chapter:');
+            const tier = prompt('Enter the tier:');
 
-            // Check if the user provided information
-            if (title && site && chapter) {
-                // Send a POST request to add the new entry
+            if (title && site && chapter && tier) {
                 const response = await fetch('http://127.0.0.1:5000/mapi?source=manhwa', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         TITLE: title,
                         SITE: site,
                         CHAPTER: parseInt(chapter),
+                        TIER: tier,
                     }),
                 });
 
                 if (response.ok) {
-                    // Successfully added, fetch the updated data
-                    fetchData();
+                    fetchData(currentTier);
                     console.log(`Successfully added new entry - Title: ${title}, Site: ${site}, Chapter: ${chapter}`);
                 } else {
-                    // Handle error
                     console.error('Failed to add new entry:', response.statusText);
                 }
             } else {
@@ -328,10 +346,9 @@
         async function reloadAllManhwa() {
             const response = await fetch('http://127.0.0.1:5000/mapi/reload?source=manhwa');
             if (response.ok) {
-                fetchData();
-                console.log(`Successfully reload`);
+                fetchData(currentTier);
+                console.log(`Successfully reloaded`);
             } else {
-                // Handle error
                 console.error('Failed to reload:', response.statusText);
             }
         }
@@ -339,23 +356,32 @@
         async function reloadManhwa(title) {
             const response = await fetch('http://127.0.0.1:5000/mapi/reload?source=manhwa', {
                 method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    TITLE: title,
-                }),
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ TITLE: title }),
             });
             if (response.ok) {
-                fetchData();
-                console.log(`Successfully reload`);
+                fetchData(currentTier);
+                console.log(`Successfully reloaded`);
             } else {
-                // Handle error
                 console.error('Failed to reload:', response.statusText);
             }
         }
 
-        fetchData();
+        function getTierButtons(tier, title, chapter, site) {
+            let buttons = '';
+            if (tier == 1) {
+                buttons = `<button onclick="updateTierManhwa('${title}', '${chapter}', '${site}', 2)">→</button>`;
+            } else if (tier == 2) {
+                buttons = `
+                    <button onclick="updateTierManhwa('${title}', '${chapter}', '${site}', 1)">←</button>
+                    <button onclick="updateTierManhwa('${title}', '${chapter}', '${site}', 3)">→</button>`;
+            } else if (tier == 3) {
+                buttons = `<button onclick="updateTierManhwa('${title}', '${chapter}', '${site}', 2)">←</button>`;
+            }
+            return buttons;
+        }
+
+        fetchData(currentTier); // Default to current tier on initial load
     </script>
 
 </body>

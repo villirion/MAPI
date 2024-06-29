@@ -2,8 +2,9 @@ import pandas as pd
 from model.entity_error import Error, ErrorInvalidPayload
 from abc import ABC, abstractmethod
 
-manhwaCSV = "P:\\CSV\\manhwa.csv"
-mangaCSV = "P:\\CSV\\manga.csv"
+manhwaCSV = "P:\\Cédric\\CSV\\manhwa.csv"
+mangaCSV = "P:\\Cédric\\CSV\\manga.csv"
+
 
 class Workspace(ABC):
     @abstractmethod
@@ -12,6 +13,7 @@ class Workspace(ABC):
 
     def Save(self):
         pass
+
 
 class MangaWorkspace(Workspace):
     def __init__(self):
@@ -23,6 +25,7 @@ class MangaWorkspace(Workspace):
     def Save(self):
         updateCSV(self.df, mangaCSV)
 
+
 class ManhwaWorkspace(Workspace):
     def __init__(self):
         self.df = setupCSV(manhwaCSV)
@@ -33,13 +36,16 @@ class ManhwaWorkspace(Workspace):
     def Save(self):
         updateCSV(self.df, manhwaCSV)
 
+
 def setupCSV(csv: str) -> pd.DataFrame:
     df = pd.read_csv(csv)
 
     return df
 
+
 def updateCSV(df: pd.DataFrame, csv: str) -> pd.DataFrame:
     df.to_csv(csv, index=False)
+
 
 def getWorkspace(source: str) -> tuple[Workspace, Error]:
     if source == "manhwa":

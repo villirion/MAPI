@@ -1,25 +1,25 @@
 from model.entity_error import Error, ErrorInvalidPayload, ErrorInvalidFormat
-from model.entity_scan import Scan, NewScan
+from model.entity_scan import Scan, NewScan, NewScanFromDatabase
 from model.entity_workspace import getWorkspace
 from dataframe import Insert, GetAll, Exist, Replace, ReplaceStatusAll, Remove, Get
 from model.entity_site import getSite
 from model.entity_status import StatusLinkBroken
-from title import toOriginalTitle
 
-def List(source: str) -> list[dict]:
+def List(source: str, tier: str) -> list[dict]:
     workspace, err = getWorkspace(source)
-    if err != None:
+    if err is not None:
         return err
 
-    return GetAll(workspace.DF())
+    return GetAll(workspace.DF(), int(tier))
+
 
 def Post(source: str, data: dict) -> Error:
     workspace, err = getWorkspace(source)
-    if err != None:
+    if err is not None:
         return err
 
     scan, err = createScan(data)
-    if err != None:
+    if err is not None:
         return err
 
     Insert(workspace.DF(), scan)
@@ -28,13 +28,14 @@ def Post(source: str, data: dict) -> Error:
 
     return None
 
+
 def Update(source: str, data: dict) -> Error:
     workspace, err = getWorkspace(source)
-    if err != None:
+    if err is not None:
         return err
 
     scan, err = createScan(data)
-    if err != None:
+    if err is not None:
         return err
 
     if not Exist(workspace.DF(), scan.Title()):
@@ -46,13 +47,14 @@ def Update(source: str, data: dict) -> Error:
 
     return None
 
+
 def Delete(source: str, data: dict) -> Error:
     workspace, err = getWorkspace(source)
-    if err != None:
+    if err is not None:
         return err
 
     title, err = getTitle(data)
-    if err != None:
+    if err is not None:
         return err
 
     if not Exist(workspace.DF(), title):
@@ -64,28 +66,27 @@ def Delete(source: str, data: dict) -> Error:
 
     return None
 
+
 def Reload(source: str, data: dict) -> Error:
     workspace, err = getWorkspace(source)
-    if err != None:
+    if err is not None:
         return err
 
     title, err = getTitle(data)
-    if err != None:
+    if err is not None:
         return err
 
     scan = Get(workspace.DF(), title)
-    if scan == None:
+    if scan is None:
         return ErrorInvalidPayload()
 
     if scan['STATUS'] == StatusLinkBroken().String():
         site, _ = getSite(scan['SITE'])
-        newSite = site.reloadURL(toOriginalTitle(scan['TITLE']))
-        if newSite != None:
+        newSite = site.reloadURL(scan['TITLE'])
+        if newSite is not None:
             scan['SITE'] = newSite
 
-    updatedScan, err = NewScan(scan['TITLE'], scan['SITE'], scan['CHAPTER'])
-    if err != None:
-        return err
+    updatedScan = NewScanFromDatabase(scan['TITLE'], scan['SITE'], scan['CHAPTER'], scan['TIER'])
 
     Replace(workspace.DF(), updatedScan)
 
@@ -93,9 +94,10 @@ def Reload(source: str, data: dict) -> Error:
 
     return None
 
+
 def ReloadAll(source: str) -> Error:
     workspace, err = getWorkspace(source)
-    if err != None:
+    if err is not None:
         return err
 
     ReplaceStatusAll(workspace.DF())
@@ -103,6 +105,7 @@ def ReloadAll(source: str) -> Error:
     workspace.Save()
 
     return None
+
 
 def getTitle(data: dict) -> tuple[str, Error]:
     requiredKeys = {'TITLE'}
@@ -112,8 +115,8 @@ def getTitle(data: dict) -> tuple[str, Error]:
     return data['TITLE'], None
 
 def createScan(data: dict) -> tuple[Scan, Error]:
-    requiredKeys = {'TITLE', 'SITE', 'CHAPTER'}
+    requiredKeys = {'TITLE', 'SITE', 'CHAPTER', 'TIER'}
     if not requiredKeys.issubset(data.keys()):
         return None, ErrorInvalidFormat()
 
-    return NewScan(data['TITLE'], data['SITE'], data['CHAPTER'])
+    return NewScan(data['TITLE'], data['SITE'], data['CHAPTER'], data['TIER'])
