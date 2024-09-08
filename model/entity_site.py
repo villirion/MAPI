@@ -16,8 +16,8 @@ class Site(ABC):
 
 class Asuratoon(Site):
     def chapterExist(self, soup: BeautifulSoup, chapter: str) -> bool:
-        pattern = re.compile(fr'(^{chapter})(.*)')
-        chapterFound = soup.find('li', {'data-num': pattern})
+        pattern = re.compile(fr'.*chapter/{chapter}$')
+        chapterFound = soup.find('a', href=pattern)
 
         if not chapterFound:
             return False
@@ -25,16 +25,19 @@ class Asuratoon(Site):
         return True
 
     def reloadURL(self, title: str) -> str:
-        response, ok = pageExist("https://asuratoon.com/?s=" + title)
+        response, ok = pageExist("https://asuracomic.net/series?page=1&name=" + title.replace("’", "'"))
         if not ok:
             return None
 
         soup = BeautifulSoup(response.text, 'html.parser')
-        urlFound = soup.find('a', {'title': title})
+        title = title.lower().replace(" ", "-").replace("’", "").replace(",", "").replace("(", "").replace(")", "").replace(":", "")
+        print(title)
+        pattern = re.compile(fr'series/{title}-.*$')
+        urlFound = soup.find('a', href=pattern)
         if not urlFound:
             return None
 
-        return urlFound.get('href')
+        return "https://asuracomic.net/" + urlFound.get('href')
 
 
 class Luminouscomics(Site):
@@ -47,7 +50,7 @@ class Luminouscomics(Site):
         return True
 
     def reloadURL(self, title: str) -> str:
-        response, ok = pageExist("https://luminouscomics.org/?s=" + title.replace("’", "'"))
+        response, ok = pageExist("https://radiantscans.com/?s=" + title.replace("’", "'"))
         if not ok:
             return None
 
@@ -132,10 +135,10 @@ class Reaperscans(Site):
 
 
 def getSite(url: str) -> tuple[Site, Error]:
-    if "luminouscomics.org" in url:
+    if "radiantscans.com" in url:
         return Luminouscomics(), None
 
-    if "asuratoon.com" in url:
+    if "asuracomic.net" in url:
         return Asuratoon(), None
 
     if "manga4life.com" in url:
